@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up | EcoTokens Protocol</title>
+  <meta name="description" content="Create an EcoTokens account and join the decentralized carbon credit protocol." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --surface: #0c1324;
+      --surface-card: #2e3447;
+      --primary: #4edea3;
+      --primary-dim: #3cddc7;
+      --on-primary: #003824;
+      --on-surface: #dce2fa;
+      --on-surface-variant: #bbcac0;
+      --outline-ghost: rgba(60,74,66,0.18);
+      --error: #ffb4ab;
+      --error-bg: rgba(147,0,10,0.3);
+    }
+
+    body {
+      font-family: 'Manrope', sans-serif;
+      background: var(--surface);
+      background-image: radial-gradient(ellipse at 80% 10%, #064e3b 0%, transparent 55%),
+                        radial-gradient(ellipse at 10% 90%, #032f24 0%, transparent 45%);
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: var(--on-surface);
+      animation: fadeInUp 0.5s ease-out both;
+      padding: 80px 16px 32px;
+      position: relative; overflow-x: hidden;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    #particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+    .top-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 32px;
+      background: rgba(12,19,36,0.6);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--outline-ghost); z-index: 10;
+    }
+    .logo {
+      font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; font-weight: 700;
+      background: linear-gradient(90deg, var(--primary), var(--primary-dim));
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; text-decoration: none;
+    }
+    .top-links { display: flex; gap: 24px; }
+    .top-links a {
+      color: var(--on-surface-variant); font-size: 0.875rem;
+      text-decoration: none; transition: color 0.2s;
+    }
+    .top-links a:hover { color: var(--primary); }
+
+    .card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 440px;
+      background: rgba(46,52,71,0.55);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--outline-ghost);
+      border-radius: 20px; padding: 44px 40px;
+      box-shadow: 0 24px 60px rgba(0,56,36,0.25);
+    }
+
+    .card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2rem; font-weight: 700; letter-spacing: -0.02em;
+      color: var(--on-surface);
+    }
+    .card-title span {
+      background: linear-gradient(90deg, var(--primary), var(--primary-dim));
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .card-subtitle { margin-top: 8px; font-size: 0.9rem; color: var(--on-surface-variant); }
+
+    .form-group { margin-top: 20px; }
+    .form-group label {
+      display: block; font-size: 0.8rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--on-surface-variant); margin-bottom: 8px;
+    }
+    .input-wrap { position: relative; }
+    .input-wrap input {
+      width: 100%; padding: 13px 16px;
+      background: var(--surface-card); border: none;
+      border-bottom: 2px solid rgba(60,74,66,0.35);
+      border-radius: 10px 10px 0 0;
+      color: var(--on-surface);
+      font-family: 'Manrope', sans-serif; font-size: 0.95rem;
+      outline: none; transition: border-color 0.2s, background 0.2s;
+    }
+    .input-wrap input:focus {
+      border-bottom-color: var(--primary);
+      background: rgba(78,222,163,0.06);
+    }
+    .toggle-pw {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--on-surface-variant); font-size: 1.1rem; padding: 4px;
+      transition: color 0.2s;
+    }
+    .toggle-pw:hover { color: var(--primary); }
+
+    /* Password strength bar */
+    .pw-strength { margin-top: 8px; height: 3px; border-radius: 2px; background: rgba(60,74,66,0.3); overflow: hidden; }
+    .pw-strength-fill { height: 100%; width: 0%; border-radius: 2px; transition: width 0.3s, background 0.3s; }
+    .pw-strength-label { font-size: 0.72rem; color: var(--on-surface-variant); margin-top: 4px; text-align: right; }
+
+    .btn-primary {
+      display: block; width: 100%; margin-top: 28px;
+      padding: 14px; border: none; border-radius: 10px; cursor: pointer;
+      background: linear-gradient(90deg, var(--primary), var(--primary-dim));
+      color: var(--on-primary);
+      font-family: 'Space Grotesk', sans-serif; font-size: 1rem; font-weight: 700;
+      transition: opacity 0.2s, box-shadow 0.2s, transform 0.15s;
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+      box-shadow: 0 8px 24px rgba(78,222,163,0.3);
+      transform: translateY(-1px);
+    }
+
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 22px 0; color: var(--on-surface-variant); font-size: 0.8rem;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--outline-ghost);
+    }
+
+    .btn-google {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 13px;
+      background: rgba(46,52,71,0.6); border: 1px solid var(--outline-ghost);
+      border-radius: 10px; cursor: pointer;
+      color: var(--on-surface); font-family: 'Manrope', sans-serif;
+      font-size: 0.9rem; font-weight: 500;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .btn-google:hover {
+      border-color: rgba(78,222,163,0.3); background: rgba(78,222,163,0.06);
+      transform: translateY(-1px);
+    }
+    .btn-google img { width: 18px; height: 18px; }
+
+    .card-footer { margin-top: 20px; text-align: center; font-size: 0.875rem; color: var(--on-surface-variant); }
+    .card-footer a { color: var(--primary); text-decoration: none; font-weight: 600; }
+    .card-footer a:hover { text-decoration: underline; }
+
+    .terms-note { margin-top: 16px; font-size: 0.75rem; color: var(--on-surface-variant); text-align: center; opacity: 0.7; }
+    .terms-note a { color: var(--primary-dim); }
+
+    .status-msg {
+      display: none; margin-top: 14px; padding: 12px 16px;
+      border-radius: 8px; font-size: 0.875rem; text-align: center;
+    }
+    .status-msg.show { display: block; }
+    .status-msg.error { background: var(--error-bg); color: var(--error); border: 1px solid rgba(255,180,171,0.25); }
+    .status-msg.success { background: rgba(78,222,163,0.12); color: var(--primary); border: 1px solid rgba(78,222,163,0.25); }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <canvas id="particles"></canvas>
+
+  <nav class="top-bar">
+    <a href="index.html" class="logo">Ecotokens</a>
+    <div class="top-links">
+      <a href="index.html#about">Protocol</a>
+      <a href="index.html#features">Ecosystem</a>
+      <a href="login.html">Login</a>
+    </div>
+  </nav>
+
+  <div class="card">
+    <h1 class="card-title">Create <span>Account</span></h1>
+    <p class="card-subtitle">Join the decentralized carbon protocol</p>
+
+    <div class="form-group">
+      <label for="name">Full Name</label>
+      <div class="input-wrap">
+        <input id="name" type="text" placeholder="Your name" autocomplete="name" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <div class="input-wrap">
+        <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <div class="input-wrap">
+        <input id="password" type="password" placeholder="Min. 6 characters" autocomplete="new-password"
+               oninput="checkStrength(this.value)" />
+        <button class="toggle-pw" type="button" onclick="togglePw('password',this)">👁</button>
+      </div>
+      <div class="pw-strength"><div class="pw-strength-fill" id="strengthFill"></div></div>
+      <div class="pw-strength-label" id="strengthLabel"></div>
+    </div>
+
+    <div id="statusMsg" class="status-msg"></div>
+
+    <button id="signupButton" class="btn-primary" type="button" onclick="signupUser()">
+      Create Account
+    </button>
+
+    <div class="divider">OR</div>
+
+    <div id="g_id_onload"
+         data-client_id="730097461083-vm5m7kitui4knahkvv9ug1j01b28jti8.apps.googleusercontent.com"
+         data-context="signup"
+         data-ux_mode="popup"
+         data-callback="handleGoogleAuth"
+         data-auto_prompt="false">
+    </div>
+    <div class="g_id_signin"
+         data-type="standard"
+         data-shape="rectangular"
+         data-theme="filled_black"
+         data-text="signup_with"
+         data-size="large"
+         data-logo_alignment="left"
+         style="width: 100%; display: flex; justify-content: center; margin-top: 5px;">
+    </div>
+
+    <p class="card-footer">Already have an account? <a href="login.html">Login</a></p>
+
+    <p class="terms-note">
+      By signing up you agree to our
+      <a href="#">Terms of Service</a> and <a href="#">Carbon Registry Methodology</a>.
+    </p>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    // Particle background
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+    class Particle {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height;
+        this.r = Math.random() * 1.5 + 0.5;
+        this.vy = -Math.random() * 0.4 - 0.1; this.vx = (Math.random() - 0.5) * 0.2;
+        this.alpha = Math.random() * 0.4 + 0.1;
+      }
+      update() { this.x += this.vx; this.y += this.vy; if (this.y < -10) this.reset(); }
+      draw() {
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(78,222,163,${this.alpha})`; ctx.fill();
+      }
+    }
+    for (let i = 0; i < 80; i++) particles.push(new Particle());
+    function animParticles() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animParticles);
+    }
+    animParticles();
+
+    function togglePw(id, btn) {
+      const inp = document.getElementById(id);
+      const isText = inp.type === 'text';
+      inp.type = isText ? 'password' : 'text';
+      btn.textContent = isText ? '👁' : '🙈';
+    }
+
+    function checkStrength(val) {
+      const fill = document.getElementById('strengthFill');
+      const label = document.getElementById('strengthLabel');
+      if (!val) { fill.style.width = '0%'; label.textContent = ''; return; }
+      let score = 0;
+      if (val.length >= 8) score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
+      const levels = [
+        { w: '25%', c: '#ff716c', t: 'Weak' },
+        { w: '50%', c: '#ffd166', t: 'Fair' },
+        { w: '75%', c: '#4edea3', t: 'Good' },
+        { w: '100%', c: '#3cddc7', t: 'Strong' },
+      ];
+      const l = levels[Math.min(score, 3)];
+      fill.style.width = l.w; fill.style.background = l.c;
+      label.textContent = l.t; label.style.color = l.c;
+    }
+
+    // Override showFormMessage from auth.js to use the inline statusMsg div
+    function showFormMessage(msg, isError) {
+      const el = document.getElementById('statusMsg');
+      el.textContent = msg;
+      el.className = 'status-msg show ' + (isError ? 'error' : 'success');
+    }
+
+    function googleSignup() {
+      showFormMessage('Google Sign-Up — OAuth can be added in a future update.', false);
+    }
+  </script>
+</body>
+</html>
