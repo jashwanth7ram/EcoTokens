@@ -30,6 +30,7 @@ contract CarbonCreditLifecycle is ERC20, AccessControl {
     // Replaced OpenZeppelin Counters with standard uint256
     uint256 private _projectIds;
     uint256 private _listingIds;
+    uint256 public totalRetired;
 
     // --- Data Structures ---
     struct Project {
@@ -59,6 +60,7 @@ contract CarbonCreditLifecycle is ERC20, AccessControl {
     event ListingCreated(uint256 indexed listingId, address indexed seller, uint256 amount, uint256 price);
     event ListingSold(uint256 indexed listingId, address indexed buyer, uint256 amount, uint256 price);
     event ListingCancelled(uint256 indexed listingId, address indexed seller);
+    event CreditRetired(address indexed retirer, uint256 amount, string purpose);
 
     // --- Constructor ---
     constructor() ERC20("Carbon Credit Token", "CCT") {
@@ -254,6 +256,33 @@ contract CarbonCreditLifecycle is ERC20, AccessControl {
             }
         }
         return active;
+    }
+
+    /**
+     * @notice Permanently burn CCT tokens to offset CO2. Irreversible.
+     * @param _amount Whole number of CCT tokens to retire.
+     * @param _purpose Reason for retirement (e.g. company name / offset reason).
+     */
+    function retireCredits(uint256 _amount, string memory _purpose) public {
+        require(_amount > 0, "Amount must be greater than zero");
+        require(bytes(_purpose).length > 0, "Purpose cannot be empty");
+        uint256 amountInWei = _amount * (10**decimals());
+        require(balanceOf(msg.sender) >= amountInWei, "Insufficient CCT balance");
+        _burn(msg.sender, amountInWei);
+        totalRetired += amountInWei;
+        emit CreditRetired(msg.sender, amountInWei, _purpose);
+    }
+
+    /**
+     * @notice Returns key protocol-wide statistics in one call.
+     */
+    function getStats() public view returns (
+        uint256 _totalSupply,
+        uint256 _totalRetired,
+        uint256 _totalProjects,
+        uint256 _totalListings
+    ) {
+        return (totalSupply(), totalRetired, _projectIds, _listingIds);
     }
 }
 

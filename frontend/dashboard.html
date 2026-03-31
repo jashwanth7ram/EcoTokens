@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Ethers.js v5 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Google Fonts: Emerald Protocol -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
@@ -99,6 +101,53 @@
             font-size: 0.875rem !important;
             box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
         }
+        /* History table rows */
+        #historyTableBody tr {
+            border-bottom: 1px solid var(--outline-ghost);
+            transition: background 0.15s;
+        }
+        #historyTableBody tr:last-child { border-bottom: none; }
+        #historyTableBody tr:hover { background: rgba(78,222,163,0.04); }
+        /* Filter pill active */
+        .active-filter {
+            background: rgba(78,222,163,0.15) !important;
+            color: var(--primary) !important;
+            border-color: rgba(78,222,163,0.3) !important;
+        }
+        /* Spinner animation */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        /* Type badges */
+        .badge-sold     { background:rgba(239,68,68,0.15);  color:#f87171;  border:1px solid rgba(239,68,68,0.3);  }
+        .badge-bought   { background:rgba(34,197,94,0.15);  color:#4ade80;  border:1px solid rgba(34,197,94,0.3);  }
+        .badge-listed   { background:rgba(99,102,241,0.15); color:#a5b4fc;  border:1px solid rgba(99,102,241,0.3); }
+        .badge-cancelled{ background:rgba(107,114,128,0.2); color:#9ca3af;  border:1px solid rgba(107,114,128,0.3);}
+        .badge-minted   { background:rgba(78,222,163,0.15); color:var(--primary); border:1px solid rgba(78,222,163,0.3); }
+        .tx-badge {
+            display:inline-block; padding:3px 8px; border-radius:20px;
+            font-family:'Space Grotesk',sans-serif; font-size:0.72rem; font-weight:700;
+        }
+        /* Protocol Stats Banner */
+        #statsBanner { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+        @media(max-width:640px){ #statsBanner { grid-template-columns:repeat(2,1fr); } }
+        .stat-card {
+            background:rgba(46,52,71,0.6); border:1px solid var(--outline-ghost);
+            border-radius:14px; padding:18px 20px; text-align:center;
+            backdrop-filter:blur(12px); transition:border-color 0.2s, transform 0.2s;
+        }
+        .stat-card:hover { border-color:rgba(78,222,163,0.3); transform:translateY(-2px); }
+        /* Live notification */
+        #liveNotification {
+            position:fixed; bottom:100px; right:20px; max-width:300px; z-index:200;
+            border-radius:12px; padding:14px 18px; line-height:1.6;
+            backdrop-filter:blur(16px); background:rgba(24,31,49,0.97);
+            border:1px solid rgba(78,222,163,0.35); color:var(--on-surface);
+            font-size:0.82rem; display:none;
+        }
+        /* Chart wrapper */
+        .chart-wrapper {
+            background:rgba(46,52,71,0.5); border:1px solid var(--outline-ghost);
+            border-radius:16px; padding:24px; margin-top:20px;
+        }
     </style>
 </head>
 <body>
@@ -147,6 +196,30 @@
         </div>
 
         <!-- Main Application -->
+        <!-- Protocol Stats Banner (shown once contract loaded) -->
+        <div id="statsBanner" class="w-full max-w-4xl mt-6 hidden">
+            <div class="stat-card">
+                <p class="text-xs font-semibold uppercase" style="color:var(--on-surface-variant);letter-spacing:.08em">Total CCT Minted</p>
+                <p class="text-2xl font-bold mt-2" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="statMinted">—</p>
+                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">Carbon Credit Tokens</p>
+            </div>
+            <div class="stat-card">
+                <p class="text-xs font-semibold uppercase" style="color:var(--on-surface-variant);letter-spacing:.08em">Total CCT Retired</p>
+                <p class="text-2xl font-bold mt-2" style="color:#f87171;font-family:'Space Grotesk',sans-serif" id="statRetired">—</p>
+                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">Permanently Burned</p>
+            </div>
+            <div class="stat-card">
+                <p class="text-xs font-semibold uppercase" style="color:var(--on-surface-variant);letter-spacing:.08em">Total Projects</p>
+                <p class="text-2xl font-bold mt-2" style="color:var(--primary-dim);font-family:'Space Grotesk',sans-serif" id="statProjects">—</p>
+                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">On-Chain Submissions</p>
+            </div>
+            <div class="stat-card">
+                <p class="text-xs font-semibold uppercase" style="color:var(--on-surface-variant);letter-spacing:.08em">Active Listings</p>
+                <p class="text-2xl font-bold mt-2" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="statListings">—</p>
+                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">On Marketplace</p>
+            </div>
+        </div>
+
         <div id="mainApp" class="w-full max-w-4xl mt-8 hidden">
             <!-- Tabs -->
             <div class="border-b border-gray-700">
@@ -155,6 +228,9 @@
                     <button id="tab-originator" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium" data-tab="originator">Originator (Miner)</button>
                     <button id="tab-auditor" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium" data-tab="auditor">Auditor</button>
                     <button id="tab-marketplace" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium" data-tab="marketplace">Marketplace</button>
+                    <button id="tab-retire" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium" data-tab="retire">🔥 Retire</button>
+                    <button id="tab-charts" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium" data-tab="charts">📈 Charts</button>
+                    <button id="tab-history" class="tab-btn whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium" data-tab="history">🕒 History</button>
                 </nav>
             </div>
 
@@ -254,6 +330,187 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 🔥 Retire Credits Panel -->
+                <div id="panel-retire" class="tab-panel hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-gray-800 shadow rounded-lg p-6">
+                            <h3 class="text-lg font-medium text-white">🔥 Retire Carbon Credits</h3>
+                            <p class="text-sm mt-1" style="color:var(--on-surface-variant)">Permanently burn CCT tokens to offset CO₂. This is <strong style="color:#f87171">irreversible</strong> and recorded on-chain forever.</p>
+                            <div class="mt-5 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300">Amount to Retire (whole CCT tokens)</label>
+                                    <input type="number" id="retireAmount" class="mt-1 block w-full rounded-md border-gray-600 bg-gray-700 text-white shadow-sm p-2" placeholder="e.g. 100">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300">Purpose / Organisation Name</label>
+                                    <input type="text" id="retirePurpose" class="mt-1 block w-full rounded-md border-gray-600 bg-gray-700 text-white shadow-sm p-2" placeholder="e.g. Offsetting Q1 2024 emissions for AcmeCorp">
+                                </div>
+                                <button id="retireButton" class="w-full rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm" style="background:linear-gradient(90deg,#ef4444,#dc2626)">🔥 Retire Credits (Irreversible)</button>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 shadow rounded-lg p-6">
+                            <h3 class="text-lg font-medium text-white">What is Retirement?</h3>
+                            <div class="mt-4 space-y-3">
+                                <div class="p-4 rounded-xl" style="background:rgba(78,222,163,0.05);border:1px solid rgba(78,222,163,0.15)">
+                                    <p class="font-semibold" style="color:var(--primary)">🌍 Real CO₂ Offset</p>
+                                    <p class="text-sm mt-1" style="color:var(--on-surface-variant)">Each CCT = 1 tonne of CO₂ offset. Retiring proves you permanently neutralised that carbon.</p>
+                                </div>
+                                <div class="p-4 rounded-xl" style="background:rgba(78,222,163,0.05);border:1px solid rgba(78,222,163,0.15)">
+                                    <p class="font-semibold" style="color:var(--primary)">🔗 Blockchain Proof</p>
+                                    <p class="text-sm mt-1" style="color:var(--on-surface-variant)">The CreditRetired event is stored permanently on Ethereum — verifiable by anyone via Etherscan.</p>
+                                </div>
+                                <div class="p-4 rounded-xl" style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2)">
+                                    <p class="font-semibold" style="color:#f87171">⚠️ Irreversible Action</p>
+                                    <p class="text-sm mt-1" style="color:var(--on-surface-variant)">Tokens are burned from the total supply. This cannot be undone.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 📈 Charts Panel -->
+                <div id="panel-charts" class="tab-panel hidden">
+
+                    <!-- Header -->
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-bold text-white" style="font-family:'Space Grotesk',sans-serif">📊 Market Analytics</h3>
+                            <p class="text-sm mt-1" style="color:var(--on-surface-variant)">Live CCT trading data from the backend trade log. Make sure the backend is running.</p>
+                        </div>
+                        <button id="refreshChartBtn" class="rounded-md px-4 py-2 text-sm font-semibold" style="background:linear-gradient(90deg,var(--primary),var(--primary-dim));color:var(--on-primary)">↻ Refresh Charts</button>
+                    </div>
+
+                    <!-- Summary stats row -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6" id="chartStatRow">
+                        <div class="rounded-xl p-4 text-center" style="background:rgba(78,222,163,0.07);border:1px solid rgba(78,222,163,0.15)">
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Total Trades</p>
+                            <p class="text-2xl font-bold mt-1" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="cs-trades">—</p>
+                        </div>
+                        <div class="rounded-xl p-4 text-center" style="background:rgba(78,222,163,0.07);border:1px solid rgba(78,222,163,0.15)">
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Total CCT Sold</p>
+                            <p class="text-2xl font-bold mt-1" style="color:var(--primary-dim);font-family:'Space Grotesk',sans-serif" id="cs-cct">—</p>
+                        </div>
+                        <div class="rounded-xl p-4 text-center" style="background:rgba(78,222,163,0.07);border:1px solid rgba(78,222,163,0.15)">
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Total ETH Volume</p>
+                            <p class="text-2xl font-bold mt-1" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="cs-eth">—</p>
+                        </div>
+                        <div class="rounded-xl p-4 text-center" style="background:rgba(78,222,163,0.07);border:1px solid rgba(78,222,163,0.15)">
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Avg Price / CCT</p>
+                            <p class="text-2xl font-bold mt-1" style="color:var(--primary-dim);font-family:'Space Grotesk',sans-serif" id="cs-avg">—</p>
+                        </div>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div id="chartEmpty" class="hidden text-center py-12">
+                        <div style="font-size:3rem">📉</div>
+                        <p class="mt-3 font-semibold" style="color:var(--on-surface)">No trade data yet</p>
+                        <p class="mt-1 text-sm" style="color:var(--on-surface-variant)">Complete a buy on the Marketplace — your first trade will appear here instantly.</p>
+                    </div>
+
+                    <!-- Chart 1: Price History -->
+                    <div id="chartBlock1" class="chart-wrapper mb-6">
+                        <div class="mb-4">
+                            <p class="font-semibold" style="color:var(--primary);font-family:'Space Grotesk',sans-serif">📈 CCT Market Price Over Time</p>
+                            <p class="text-xs mt-1" style="color:var(--on-surface-variant)">How much ETH buyers paid per 1 CCT token in each trade. A rising line = CCT becoming more valuable.</p>
+                        </div>
+                        <canvas id="priceChart" height="110"></canvas>
+                    </div>
+
+                    <!-- Chart 2 + 3 side by side -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="chart-wrapper">
+                            <div class="mb-4">
+                                <p class="font-semibold" style="color:#a5b4fc;font-family:'Space Grotesk',sans-serif">🪙 CCT Volume Per Trade</p>
+                                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">How many CCT tokens were exchanged in each trade. Tall bars = large bulk purchases.</p>
+                            </div>
+                            <canvas id="volumeChart" height="160"></canvas>
+                        </div>
+                        <div class="chart-wrapper">
+                            <div class="mb-4">
+                                <p class="font-semibold" style="color:#f9a8d4;font-family:'Space Grotesk',sans-serif">💰 ETH Spent Per Trade</p>
+                                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">Total ETH transferred in each trade. Higher bars = more expensive purchases.</p>
+                            </div>
+                            <canvas id="ethChart" height="160"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Transaction History Panel -->
+                <div id="panel-history" class="tab-panel hidden">
+                    <div class="bg-gray-800 shadow rounded-lg p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 class="text-lg font-medium text-white">📜 On-Chain Transaction History</h3>
+                                <p class="text-sm mt-1" style="color:var(--on-surface-variant)">All trades &amp; events linked to your wallet address, sourced directly from the blockchain.</p>
+                            </div>
+                            <button id="refreshHistoryButton" class="rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all" style="background:linear-gradient(90deg,var(--primary),var(--primary-dim));color:var(--on-primary)">↻ Refresh</button>
+                        </div>
+
+                        <!-- Filter pills -->
+                        <div class="flex gap-2 mb-5 flex-wrap" id="historyFilters">
+                            <button class="hist-filter active-filter px-3 py-1 rounded-full text-xs font-semibold border transition-all" data-filter="all" style="background:rgba(78,222,163,0.15);color:var(--primary);border-color:rgba(78,222,163,0.3)">All</button>
+                            <button class="hist-filter px-3 py-1 rounded-full text-xs font-semibold border transition-all" data-filter="sold" style="background:transparent;color:var(--on-surface-variant);border-color:var(--outline-ghost)">💸 Sold</button>
+                            <button class="hist-filter px-3 py-1 rounded-full text-xs font-semibold border transition-all" data-filter="bought" style="background:transparent;color:var(--on-surface-variant);border-color:var(--outline-ghost)">🛒 Bought</button>
+                            <button class="hist-filter px-3 py-1 rounded-full text-xs font-semibold border transition-all" data-filter="listed" style="background:transparent;color:var(--on-surface-variant);border-color:var(--outline-ghost)">📋 Listed</button>
+                            <button class="hist-filter px-3 py-1 rounded-full text-xs font-semibold border transition-all" data-filter="cancelled" style="background:transparent;color:var(--on-surface-variant);border-color:var(--outline-ghost)">❌ Cancelled</button>
+                            <button class="hist-filter px-3 py-1 rounded-full text-xs font-semibold border transition-all" data-filter="minted" style="background:transparent;color:var(--on-surface-variant);border-color:var(--outline-ghost)">✅ Minted</button>
+                        </div>
+
+                        <!-- Loading spinner -->
+                        <div id="historyLoader" class="hidden flex items-center justify-center py-12">
+                            <div style="width:32px;height:32px;border:3px solid rgba(78,222,163,0.2);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite"></div>
+                            <span class="ml-3 text-sm" style="color:var(--on-surface-variant)">Querying blockchain events...</span>
+                        </div>
+
+                        <!-- Empty state -->
+                        <div id="historyEmpty" class="hidden text-center py-12">
+                            <div style="font-size:3rem">🔍</div>
+                            <p class="mt-3 font-semibold" style="color:var(--on-surface)">No transactions found</p>
+                            <p class="mt-1 text-sm" style="color:var(--on-surface-variant)">Your on-chain activity will appear here once you trade, list, or cancel.</p>
+                        </div>
+
+                        <!-- Table -->
+                        <div id="historyTableWrap" class="overflow-x-auto rounded-xl" style="border:1px solid var(--outline-ghost)">
+                            <table class="w-full text-sm" id="historyTable" style="border-collapse:collapse">
+                                <thead>
+                                    <tr style="background:rgba(46,52,71,0.8);border-bottom:1px solid var(--outline-ghost)">
+                                        <th class="px-4 py-3 text-left font-semibold" style="color:var(--on-surface-variant);font-family:'Space Grotesk',sans-serif;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em">Type</th>
+                                        <th class="px-4 py-3 text-left font-semibold" style="color:var(--on-surface-variant);font-family:'Space Grotesk',sans-serif;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em">Amount (CCT)</th>
+                                        <th class="px-4 py-3 text-left font-semibold" style="color:var(--on-surface-variant);font-family:'Space Grotesk',sans-serif;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em">Price (ETH)</th>
+                                        <th class="px-4 py-3 text-left font-semibold" style="color:var(--on-surface-variant);font-family:'Space Grotesk',sans-serif;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em">Counterparty</th>
+                                        <th class="px-4 py-3 text-left font-semibold" style="color:var(--on-surface-variant);font-family:'Space Grotesk',sans-serif;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em">Tx Hash</th>
+                                        <th class="px-4 py-3 text-left font-semibold" style="color:var(--on-surface-variant);font-family:'Space Grotesk',sans-serif;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em">Block</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Stats row -->
+                        <div class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4" id="historyStats">
+                            <div class="rounded-xl p-4 text-center" style="background:rgba(78,222,163,0.08);border:1px solid rgba(78,222,163,0.15)">
+                                <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Total Sold</p>
+                                <p class="text-xl font-bold mt-1" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="statTotalSold">—</p>
+                            </div>
+                            <div class="rounded-xl p-4 text-center" style="background:rgba(78,222,163,0.08);border:1px solid rgba(78,222,163,0.15)">
+                                <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Total Bought</p>
+                                <p class="text-xl font-bold mt-1" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="statTotalBought">—</p>
+                            </div>
+                            <div class="rounded-xl p-4 text-center" style="background:rgba(78,222,163,0.08);border:1px solid rgba(78,222,163,0.15)">
+                                <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">ETH Received</p>
+                                <p class="text-xl font-bold mt-1" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="statEthReceived">—</p>
+                            </div>
+                            <div class="rounded-xl p-4 text-center" style="background:rgba(78,222,163,0.08);border:1px solid rgba(78,222,163,0.15)">
+                                <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">ETH Spent</p>
+                                <p class="text-xl font-bold mt-1" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="statEthSpent">—</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -1231,6 +1488,42 @@
                 ],
                 "stateMutability": "nonpayable",
                 "type": "function"
+            },
+            {
+                "inputs": [{"internalType":"uint256","name":"_amount","type":"uint256"},{"internalType":"string","name":"_purpose","type":"string"}],
+                "name": "retireCredits",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getStats",
+                "outputs": [
+                    {"internalType":"uint256","name":"_totalSupply","type":"uint256"},
+                    {"internalType":"uint256","name":"_totalRetired","type":"uint256"},
+                    {"internalType":"uint256","name":"_totalProjects","type":"uint256"},
+                    {"internalType":"uint256","name":"_totalListings","type":"uint256"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "totalRetired",
+                "outputs": [{"internalType":"uint256","name":"","type":"uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed":true,"internalType":"address","name":"retirer","type":"address"},
+                    {"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},
+                    {"indexed":false,"internalType":"string","name":"purpose","type":"string"}
+                ],
+                "name": "CreditRetired",
+                "type": "event"
             }
         ];
         
@@ -1304,6 +1597,23 @@
         refreshMarketButton.addEventListener('click', loadMarketData);
         approveTokensButton.addEventListener('click', approveTokens);
         listTokensButton.addEventListener('click', listTokens);
+
+        // History Listeners
+        document.getElementById('refreshHistoryButton').addEventListener('click', loadHistory);
+        // Guard new buttons against null (safe even if panel HTML wasn't inserted)
+        const _retireBtn = document.getElementById('retireButton');
+        const _chartBtn  = document.getElementById('refreshChartBtn');
+        if (_retireBtn) _retireBtn.addEventListener('click', retireCreditsHandler);
+        if (_chartBtn)  _chartBtn.addEventListener('click', loadPriceChart);
+
+        // History filter pills
+        document.querySelectorAll('.hist-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.hist-filter').forEach(b => b.classList.remove('active-filter'));
+                btn.classList.add('active-filter');
+                renderHistory(btn.dataset.filter);
+            });
+        });
 
         // --- Functions ---
 
@@ -1433,6 +1743,10 @@
                 // Load all data
                 loadMarketData();
                 loadPendingProjects();
+                loadHistory();
+                loadStats();
+                loadPriceChart();
+                setupLiveListeners();
 
             } catch (err) {
                 console.error(err);
@@ -1452,10 +1766,10 @@
                 showStatus("Sending transaction... please wait.", false);
                 const tx = await txPromise;
                 showStatus("Transaction sent... waiting for confirmation.", false);
-                await tx.wait(); // Wait for 1 confirmation
+                const receipt = await tx.wait(); // Wait for 1 confirmation
                 showStatus(successMessage, false);
                 if (onConfirmed) {
-                    onConfirmed();
+                    onConfirmed(receipt);
                 }
             } catch (err) {
                 console.error(err);
@@ -1620,7 +1934,7 @@
                                 <p class="text-xs text-gray-400 truncate mt-1">Seller: ${listing.seller}</p>
                             </div>
                             ${listing.seller.toLowerCase() !== userAddress.toLowerCase() ?
-                                `<button class="buy-btn rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500" data-id="${id.toString()}" data-price="${listing.priceInWei.toString()}">Buy</button>`
+                                `<button class="buy-btn rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500" data-id="${id.toString()}" data-price="${listing.priceInWei.toString()}" data-seller="${listing.seller}" data-amount="${amount}" >Buy</button>`
                                 :
                                 `<button class="cancel-btn rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500" data-id="${id.toString()}">Cancel</button>`
                             }
@@ -1631,7 +1945,10 @@
 
                 // Add listeners to new buy/cancel buttons
                 document.querySelectorAll('.buy-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => buyTokens(e.target.dataset.id, e.target.dataset.price));
+                    btn.addEventListener('click', (e) => {
+                        const b = e.currentTarget;
+                        buyTokens(b.dataset.id, b.dataset.price, b.dataset.seller, b.dataset.amount);
+                    });
                 });
                 document.querySelectorAll('.cancel-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => cancelListing(e.target.dataset.id));
@@ -1692,11 +2009,37 @@
             );
         }
 
-        async function buyTokens(listingId, priceInWei) {
+        async function buyTokens(listingId, priceInWei, sellerAddress, cctAmount) {
             await handleTransaction(
                 contract.buyTokens(listingId, { value: priceInWei }),
                 "Purchase successful!",
-                loadMarketData // Refresh market
+                async (receipt) => {
+                    loadMarketData();
+                    loadStats();
+                    // Log trade to backend for price chart
+                    try {
+                        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                            ? 'http://localhost:5050' : '';
+                        const priceEth = parseFloat(ethers.utils.formatEther(priceInWei));
+                        const txHash   = receipt && receipt.transactionHash ? receipt.transactionHash : 'unknown';
+                        const block    = receipt && receipt.blockNumber ? receipt.blockNumber : 0;
+                        await fetch(`${API_BASE}/api/trades`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                listingId: listingId.toString(),
+                                buyer:     userAddress,
+                                seller:    sellerAddress || 'unknown',
+                                amount:    parseFloat(cctAmount) || 0,
+                                priceEth,
+                                txHash,
+                                blockNumber: block
+                            })
+                        });
+                    } catch (logErr) {
+                        console.warn('Trade log failed (backend may be offline):', logErr.message);
+                    }
+                }
             );
         }
 
@@ -1706,6 +2049,491 @@
                 "Listing cancelled.",
                 loadMarketData // Refresh market
             );
+        }
+
+        // =========================================================
+        // FEATURE A: PROTOCOL STATS BANNER
+        // =========================================================
+        async function loadStats() {
+            if (!contract) return;
+            try {
+                document.getElementById('statsBanner').classList.remove('hidden');
+                const supply = await contract.totalSupply();
+                document.getElementById('statMinted').textContent =
+                    parseFloat(ethers.utils.formatUnits(supply, 18)).toFixed(0) + ' CCT';
+                const listings = await contract.getActiveListings();
+                document.getElementById('statListings').textContent = listings.length;
+                try {
+                    const stats = await contract.getStats();
+                    document.getElementById('statRetired').textContent =
+                        parseFloat(ethers.utils.formatUnits(stats._totalRetired, 18)).toFixed(0) + ' CCT';
+                    document.getElementById('statProjects').textContent = stats._totalProjects.toString();
+                } catch (_) {
+                    // old contract without getStats — graceful fallback
+                    try {
+                        const retired = await contract.totalRetired();
+                        document.getElementById('statRetired').textContent =
+                            parseFloat(ethers.utils.formatUnits(retired, 18)).toFixed(0) + ' CCT';
+                    } catch (__) { document.getElementById('statRetired').textContent = 'N/A'; }
+                    const pending = await contract.getPendingProjects();
+                    document.getElementById('statProjects').textContent = pending.length + ' pending';
+                }
+            } catch (err) { console.warn('Stats:', err.message); }
+        }
+
+        // =========================================================
+        // FEATURE A: RETIRE CREDITS
+        // =========================================================
+        async function retireCreditsHandler() {
+            const amount  = document.getElementById('retireAmount').value;
+            const purpose = document.getElementById('retirePurpose').value.trim();
+            if (!amount || Number(amount) <= 0) { showStatus('Enter a valid amount to retire.', true); return; }
+            if (!purpose) { showStatus('Enter a purpose / organisation name.', true); return; }
+            let intAmount;
+            try { intAmount = ethers.BigNumber.from(Math.floor(Number(amount))); }
+            catch (e) { showStatus('Amount must be a whole number.', true); return; }
+            await handleTransaction(
+                contract.retireCredits(intAmount, purpose),
+                `🔥 ${amount} CCT permanently retired!`,
+                () => {
+                    document.getElementById('retireAmount').value = '';
+                    document.getElementById('retirePurpose').value = '';
+                    loadMarketData();
+                    loadStats();
+                }
+            );
+        }
+
+        // =========================================================
+        // FEATURE G: PRICE CHART (multi-chart dashboard)
+        // =========================================================
+        const API_BASE_CHART = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:5050' : '';
+
+        // Shared chart options factory
+        function makeChartOpts({ xLabel, yLabel, yPrefix = '', ySuffix = '', tooltipLabel }) {
+            return {
+                responsive: true,
+                animation: { duration: 900, easing: 'easeInOutQuart' },
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        labels: { color: '#bbcac0', font: { family: 'Manrope', size: 12 }, boxWidth: 12 }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(18,25,43,0.95)',
+                        borderColor: 'rgba(78,222,163,0.25)',
+                        borderWidth: 1,
+                        titleColor: '#dce2fa',
+                        bodyColor: '#bbcac0',
+                        padding: 12,
+                        titleFont: { family: 'Space Grotesk', size: 13, weight: 'bold' },
+                        bodyFont: { family: 'Manrope', size: 12 },
+                        callbacks: {
+                            label: (ctx) => `  ${tooltipLabel}: ${yPrefix}${ctx.parsed.y.toFixed(6)}${ySuffix}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: xLabel, color: '#8899a6', font: { size: 11, family: 'Manrope' } },
+                        ticks: { color: '#8899a6', font: { size: 11 }, maxTicksLimit: 10 },
+                        grid: { color: 'rgba(60,74,66,0.12)' }
+                    },
+                    y: {
+                        title: { display: true, text: yLabel, color: '#8899a6', font: { size: 11, family: 'Manrope' } },
+                        ticks: { color: '#8899a6', font: { size: 11 }, callback: (v) => `${yPrefix}${v}${ySuffix}` },
+                        grid: { color: 'rgba(60,74,66,0.12)' },
+                        beginAtZero: true
+                    }
+                }
+            };
+        }
+
+        const _charts = {}; // track instances for destroy on refresh
+
+        async function loadPriceChart() {
+            const empty = document.getElementById('chartEmpty');
+            const block1 = document.getElementById('chartBlock1');
+            const volCanvas  = document.getElementById('volumeChart');
+            const ethCanvas  = document.getElementById('ethChart');
+            const priceCanvas = document.getElementById('priceChart');
+            if (!priceCanvas) return;
+
+            try {
+                const res = await fetch(`${API_BASE_CHART}/api/trades`);
+                if (!res.ok) throw new Error('backend_offline');
+                const trades = await res.json();
+
+                if (!trades || trades.length === 0) {
+                    if (empty)  { empty.classList.remove('hidden'); }
+                    if (block1) block1.style.display = 'none';
+                    [volCanvas, ethCanvas].forEach(c => { if (c) c.closest('.chart-wrapper').style.display = 'none'; });
+                    return;
+                }
+
+                // Unhide everything
+                if (empty)  empty.classList.add('hidden');
+                if (block1) block1.style.display = '';
+                [volCanvas, ethCanvas].forEach(c => { if (c) c.closest('.chart-wrapper').style.display = ''; });
+
+                const sorted = trades.slice().reverse();
+                const labels    = sorted.map((_, i) => `Trade #${i + 1}`);
+                const priceData = sorted.map(t => t.amount > 0 ? parseFloat((t.priceEth / t.amount).toFixed(8)) : 0);
+                const volData   = sorted.map(t => parseFloat(t.amount.toFixed(4)));
+                const ethData   = sorted.map(t => parseFloat(t.priceEth.toFixed(6)));
+
+                // Summary stats row
+                const totalCCT = trades.reduce((s, t) => s + t.amount, 0);
+                const totalETH = trades.reduce((s, t) => s + t.priceEth, 0);
+                const avgPrice = totalCCT > 0 ? totalETH / totalCCT : 0;
+                document.getElementById('cs-trades').textContent = trades.length;
+                document.getElementById('cs-cct').textContent    = totalCCT.toFixed(2) + ' CCT';
+                document.getElementById('cs-eth').textContent    = totalETH.toFixed(4) + ' ETH';
+                document.getElementById('cs-avg').textContent    = avgPrice.toFixed(6) + ' ETH';
+
+                // Destroy old instances
+                Object.values(_charts).forEach(c => c && c.destroy());
+
+                // ── Chart 1: Price line ──
+                _charts.price = new Chart(priceCanvas, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'ETH per CCT',
+                            data: priceData,
+                            borderColor: '#4edea3',
+                            backgroundColor: (ctx) => {
+                                const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 220);
+                                g.addColorStop(0, 'rgba(78,222,163,0.25)');
+                                g.addColorStop(1, 'rgba(78,222,163,0)');
+                                return g;
+                            },
+                            borderWidth: 2.5,
+                            pointBackgroundColor: '#4edea3',
+                            pointBorderColor: '#0c1324',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 8,
+                            fill: true,
+                            tension: 0.4,
+                        }]
+                    },
+                    options: makeChartOpts({
+                        xLabel: 'Trade Number',
+                        yLabel: 'ETH per CCT',
+                        yPrefix: '', ySuffix: ' ETH',
+                        tooltipLabel: 'Price'
+                    })
+                });
+
+                // ── Chart 2: CCT Volume bars ──
+                _charts.volume = new Chart(volCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'CCT Tokens',
+                            data: volData,
+                            backgroundColor: 'rgba(165,180,252,0.6)',
+                            borderColor: '#a5b4fc',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: makeChartOpts({
+                        xLabel: 'Trade Number',
+                        yLabel: 'CCT Tokens',
+                        ySuffix: ' CCT',
+                        tooltipLabel: 'Volume'
+                    })
+                });
+
+                // ── Chart 3: ETH spent bars ──
+                _charts.eth = new Chart(ethCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'ETH Spent',
+                            data: ethData,
+                            backgroundColor: 'rgba(249,168,212,0.5)',
+                            borderColor: '#f9a8d4',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: makeChartOpts({
+                        xLabel: 'Trade Number',
+                        yLabel: 'ETH Spent',
+                        yPrefix: '', ySuffix: ' ETH',
+                        tooltipLabel: 'ETH'
+                    })
+                });
+
+            } catch (err) {
+                if (empty) {
+                    empty.classList.remove('hidden');
+                    empty.querySelector('p:last-child').textContent =
+                        err.message === 'backend_offline'
+                        ? '⚠️ Backend offline — run: node backend/server.js &'
+                        : 'Error loading chart data. Check the console for details.';
+                }
+            }
+        }
+
+        // =========================================================
+        // FEATURE J: LIVE BLOCKCHAIN EVENT NOTIFICATIONS
+        // =========================================================
+        let _listenersActive = false;
+        function setupLiveListeners() {
+            if (!contract || _listenersActive) return;
+            _listenersActive = true;
+            try {
+                contract.on('ListingSold', (listingId, buyer, amount, price) => {
+                    const b   = buyer.slice(0,6) + '...' + buyer.slice(-4);
+                    const cct = parseFloat(ethers.utils.formatUnits(amount, 18)).toFixed(2);
+                    const eth = parseFloat(ethers.utils.formatEther(price)).toFixed(4);
+                    showLiveNotification(`🛒 Trade Executed!\n${cct} CCT sold for ${eth} ETH\nBuyer: ${b}`);
+                    loadMarketData(); loadStats();
+                });
+                contract.on('ProjectApproved', (projectId, auditor, amountMinted) => {
+                    const cct = parseFloat(ethers.utils.formatUnits(amountMinted, 18)).toFixed(0);
+                    showLiveNotification(`✅ Project #${projectId} Approved!\n${cct} CCT minted to originator`);
+                    loadStats();
+                });
+                contract.on('CreditRetired', (retirer, amount, purpose) => {
+                    const cct = parseFloat(ethers.utils.formatUnits(amount, 18)).toFixed(2);
+                    showLiveNotification(`🔥 ${cct} CCT Retired\nPurpose: ${purpose.slice(0, 50)}`);
+                    loadStats();
+                });
+                console.log('Live blockchain listeners active ✅');
+            } catch (err) {
+                console.warn('Live listeners unavailable:', err.message);
+            }
+        }
+
+        function showLiveNotification(message) {
+            let el = document.getElementById('liveNotification');
+            if (!el) return;
+            el.innerHTML = message.split('\n').map(l => `<div>${l}</div>`).join('');
+            el.style.display = 'block';
+            clearTimeout(el._hideTimer);
+            el._hideTimer = setTimeout(() => { el.style.display = 'none'; }, 6000);
+        }
+
+        // =========================================================
+        // FEATURE: TRANSACTION HISTORY
+        // Reads on-chain events using ethers.js queryFilter and
+        // renders them in a filterable table with personal stats.
+        // =========================================================
+
+        let allHistoryRows = [];  // raw data cache for filter re-renders
+
+        async function loadHistory() {
+            if (!contract || !userAddress) return;
+
+            const loader  = document.getElementById('historyLoader');
+            const empty   = document.getElementById('historyEmpty');
+            const wrap    = document.getElementById('historyTableWrap');
+            const tbody   = document.getElementById('historyTableBody');
+
+            loader.classList.remove('hidden');
+            wrap.classList.add('hidden');
+            empty.classList.add('hidden');
+            tbody.innerHTML = '';
+            allHistoryRows  = [];
+
+            try {
+                // ── 1. Tokens you SOLD (you were the seller in ListingSold) ──
+                const soldFilter = contract.filters.ListingSold(null, null);
+                const soldEvents = await contract.queryFilter(soldFilter, 0, 'latest');
+
+                for (const ev of soldEvents) {
+                    // Find the matching ListingCreated to get the seller address
+                    const listingId = ev.args.listingId;
+                    let seller = null;
+                    try {
+                        const listing = await contract.listings(listingId);
+                        seller = listing.seller;
+                    } catch(_) {}
+
+                    const buyer = ev.args.buyer.toLowerCase();
+                    const meAddr = userAddress.toLowerCase();
+
+                    if (buyer === meAddr) {
+                        allHistoryRows.push({
+                            type: 'bought',
+                            label: '🛒 Bought',
+                            badge: 'badge-bought',
+                            amount: parseFloat(ethers.utils.formatUnits(ev.args.amount, 18)).toFixed(2),
+                            price:  parseFloat(ethers.utils.formatEther(ev.args.price)).toFixed(6),
+                            counterparty: seller || ev.args.listingId.toString(),
+                            counterLabel: 'Seller',
+                            txHash: ev.transactionHash,
+                            block: ev.blockNumber
+                        });
+                    } else if (seller && seller.toLowerCase() === meAddr) {
+                        allHistoryRows.push({
+                            type: 'sold',
+                            label: '💸 Sold',
+                            badge: 'badge-sold',
+                            amount: parseFloat(ethers.utils.formatUnits(ev.args.amount, 18)).toFixed(2),
+                            price:  parseFloat(ethers.utils.formatEther(ev.args.price)).toFixed(6),
+                            counterparty: ev.args.buyer,
+                            counterLabel: 'Buyer',
+                            txHash: ev.transactionHash,
+                            block: ev.blockNumber
+                        });
+                    }
+                }
+
+                // ── 2. Listings you CREATED ──
+                const listedFilter = contract.filters.ListingCreated(null, userAddress);
+                const listedEvents = await contract.queryFilter(listedFilter, 0, 'latest');
+
+                for (const ev of listedEvents) {
+                    allHistoryRows.push({
+                        type: 'listed',
+                        label: '📋 Listed',
+                        badge: 'badge-listed',
+                        amount: parseFloat(ethers.utils.formatUnits(ev.args.amount, 18)).toFixed(2),
+                        price:  parseFloat(ethers.utils.formatEther(ev.args.price)).toFixed(6),
+                        counterparty: '—',
+                        counterLabel: '',
+                        txHash: ev.transactionHash,
+                        block: ev.blockNumber
+                    });
+                }
+
+                // ── 3. Listings you CANCELLED ──
+                const cancelFilter = contract.filters.ListingCancelled(null, userAddress);
+                const cancelEvents = await contract.queryFilter(cancelFilter, 0, 'latest');
+
+                for (const ev of cancelEvents) {
+                    allHistoryRows.push({
+                        type: 'cancelled',
+                        label: '❌ Cancelled',
+                        badge: 'badge-cancelled',
+                        amount: '—',
+                        price:  '—',
+                        counterparty: '—',
+                        counterLabel: '',
+                        txHash: ev.transactionHash,
+                        block: ev.blockNumber
+                    });
+                }
+
+                // ── 4. Projects you got MINTED (approved) ──
+                const mintFilter = contract.filters.ProjectApproved(null, null);
+                const mintEvents = await contract.queryFilter(mintFilter, 0, 'latest');
+
+                for (const ev of mintEvents) {
+                    // Check if this project belongs to connected user
+                    try {
+                        const proj = await contract.projects(ev.args.projectId);
+                        if (proj.originator.toLowerCase() === userAddress.toLowerCase()) {
+                            allHistoryRows.push({
+                                type: 'minted',
+                                label: '✅ Minted',
+                                badge: 'badge-minted',
+                                amount: parseFloat(ethers.utils.formatUnits(ev.args.amountMinted, 18)).toFixed(2),
+                                price:  '—',
+                                counterparty: '—',
+                                counterLabel: '',
+                                txHash: ev.transactionHash,
+                                block: ev.blockNumber
+                            });
+                        }
+                    } catch(_) {}
+                }
+
+                // Sort descending by block number (most recent first)
+                allHistoryRows.sort((a, b) => b.block - a.block);
+
+                // Calculate summary stats
+                updateHistoryStats();
+
+                loader.classList.add('hidden');
+                renderHistory('all');
+
+            } catch (err) {
+                console.error('History load error:', err);
+                loader.classList.add('hidden');
+                empty.classList.remove('hidden');
+                showStatus('Failed to load history. Try refreshing.', true);
+            }
+        }
+
+        function renderHistory(filter) {
+            const tbody = document.getElementById('historyTableBody');
+            const empty = document.getElementById('historyEmpty');
+            const wrap  = document.getElementById('historyTableWrap');
+
+            const rows = filter === 'all' ? allHistoryRows : allHistoryRows.filter(r => r.type === filter);
+
+            tbody.innerHTML = '';
+
+            if (rows.length === 0) {
+                wrap.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            empty.classList.add('hidden');
+            wrap.classList.remove('hidden');
+
+            for (const row of rows) {
+                const tr = document.createElement('tr');
+                const short = row.txHash ? row.txHash.slice(0, 6) + '...' + row.txHash.slice(-4) : '—';
+                const etherscanUrl = `https://sepolia.etherscan.io/tx/${row.txHash}`;
+
+                let counterHTML = '—';
+                if (row.counterparty && row.counterparty !== '—') {
+                    const shortAddr = row.counterparty.slice(0, 6) + '...' + row.counterparty.slice(-4);
+                    const profileUrl = `https://sepolia.etherscan.io/address/${row.counterparty}`;
+                    counterHTML = `<span class="text-xs" style="color:var(--on-surface-variant)">${row.counterLabel}: </span><a href="${profileUrl}" target="_blank" style="color:var(--primary);text-decoration:underline;font-size:0.78rem">${shortAddr}</a>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="px-4 py-3">
+                        <span class="tx-badge ${row.badge}">${row.label}</span>
+                    </td>
+                    <td class="px-4 py-3 font-semibold" style="color:var(--on-surface);font-family:'Space Grotesk',sans-serif">${row.amount}</td>
+                    <td class="px-4 py-3" style="color:var(--on-surface-variant)">${row.price !== '—' ? row.price + ' ETH' : '—'}</td>
+                    <td class="px-4 py-3">${counterHTML}</td>
+                    <td class="px-4 py-3">
+                        ${row.txHash
+                            ? `<a href="${etherscanUrl}" target="_blank" style="color:var(--primary);text-decoration:underline;font-size:0.78rem;font-family:'Space Grotesk',sans-serif">${short} ↗</a>`
+                            : '—'
+                        }
+                    </td>
+                    <td class="px-4 py-3 text-xs" style="color:var(--on-surface-variant)">#${row.block}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateHistoryStats() {
+            let totalSoldAmt  = 0;
+            let totalBoughtAmt = 0;
+            let ethReceived   = 0;
+            let ethSpent      = 0;
+
+            for (const r of allHistoryRows) {
+                const amt = parseFloat(r.amount) || 0;
+                const price = parseFloat(r.price) || 0;
+                if (r.type === 'sold')   { totalSoldAmt  += amt; ethReceived += price; }
+                if (r.type === 'bought') { totalBoughtAmt += amt; ethSpent   += price; }
+            }
+
+            document.getElementById('statTotalSold').textContent   = totalSoldAmt   > 0 ? totalSoldAmt.toFixed(2)   + ' CCT' : '0 CCT';
+            document.getElementById('statTotalBought').textContent = totalBoughtAmt > 0 ? totalBoughtAmt.toFixed(2) + ' CCT' : '0 CCT';
+            document.getElementById('statEthReceived').textContent = ethReceived     > 0 ? ethReceived.toFixed(6)    + ' ETH' : '0 ETH';
+            document.getElementById('statEthSpent').textContent    = ethSpent        > 0 ? ethSpent.toFixed(6)       + ' ETH' : '0 ETH';
         }
 
         /**
@@ -1744,6 +2572,8 @@
         });
 
     </script>
+    <!-- Live blockchain notification toast -->
+    <div id="liveNotification"></div>
 </body>
 </html>
 

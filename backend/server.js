@@ -3,7 +3,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config({ path: __dirname + '/.env' });
 
-const authRoutes = require("./routes/auth");
+const authRoutes  = require("./routes/auth");
+const tradeRoutes = require("./routes/trades");
 
 const app = express();
 
@@ -18,7 +19,8 @@ app.get("/test", (req, res) => {
 });
 
 // ✅ AUTH ROUTES
-app.use("/api/auth", authRoutes);
+app.use("/api/auth",   authRoutes);
+app.use("/api/trades", tradeRoutes);
 
 // ✅ DB
 mongoose

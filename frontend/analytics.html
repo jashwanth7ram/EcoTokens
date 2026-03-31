@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoTokens | Protocol Analytics</title>
+    <meta name="description" content="Real-time analytics for the EcoTokens Carbon Credit Protocol — track trading volume, price history, and top offset contributors.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --surface: #0c1324; --surface-low: #141b2c; --surface-card: #2e3447;
+            --primary: #4edea3; --primary-dim: #3cddc7; --on-primary: #003824;
+            --on-surface: #dce2fa; --on-surface-variant: #bbcac0;
+            --outline-ghost: rgba(60,74,66,0.18);
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            background: var(--surface);
+            background-image: radial-gradient(ellipse at 80% 0%, #064e3b 0%, transparent 40%);
+            color: var(--on-surface); font-family: 'Manrope', sans-serif; min-height: 100vh;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--surface); }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }
+        .bg-gray-800 {
+            background: rgba(46,52,71,0.6) !important;
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--outline-ghost) !important;
+        }
+        #appHeader {
+            position: sticky; top: 0; z-index: 50;
+            background: rgba(12,19,36,0.75);
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            border-bottom: 1px solid var(--outline-ghost);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 32px;
+        }
+        .app-logo {
+            font-family: 'Space Grotesk', sans-serif; font-size: 1.3rem; font-weight: 700;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dim));
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; text-decoration: none;
+        }
+        .stat-card {
+            background: rgba(46,52,71,0.6); border: 1px solid var(--outline-ghost);
+            border-radius: 16px; padding: 24px; text-align: center;
+            backdrop-filter: blur(12px); transition: border-color 0.2s, transform 0.2s;
+        }
+        .stat-card:hover { border-color: rgba(78,222,163,0.3); transform: translateY(-3px); }
+        .chart-box {
+            background: rgba(46,52,71,0.5); border: 1px solid var(--outline-ghost);
+            border-radius: 16px; padding: 28px; margin-top: 10px;
+        }
+        .leader-row {
+            display: flex; align-items: center; gap: 16px;
+            padding: 14px 0; border-bottom: 1px solid var(--outline-ghost);
+            transition: background 0.15s;
+        }
+        .leader-row:last-child { border-bottom: none; }
+        .rank-badge {
+            width: 36px; height: 36px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center;
+            font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        .fade-in { animation: fadeIn 0.5s ease-out both; }
+        .section-label {
+            display: inline-block; font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--primary); background: rgba(78,222,163,0.1);
+            padding: 4px 12px; border-radius: 100px; border: 1px solid rgba(78,222,163,0.2);
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="appHeader">
+        <a href="index.html" class="app-logo">⬡ Ecotokens</a>
+        <div style="display:flex;gap:16px;align-items:center">
+            <a href="dashboard.html" style="color:var(--on-surface-variant);font-size:0.875rem;text-decoration:none">← Dashboard</a>
+            <span id="lastUpdated" style="color:var(--on-surface-variant);font-size:0.8rem"></span>
+        </div>
+    </div>
+
+    <div class="min-h-full flex flex-col items-center py-8 px-4">
+
+        <!-- Header -->
+        <div class="w-full max-w-5xl text-center fade-in">
+            <div class="section-label">Protocol Analytics</div>
+            <h1 class="text-3xl font-bold mt-2" style="font-family:'Space Grotesk',sans-serif">Live Protocol Dashboard</h1>
+            <p class="mt-2 text-sm" style="color:var(--on-surface-variant)">Real-time trading metrics sourced from the EcoTokens backend and blockchain events.</p>
+        </div>
+
+        <!-- Overview Stats -->
+        <div class="w-full max-w-5xl mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 fade-in">
+            <div class="stat-card">
+                <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Total Trades</p>
+                <p class="text-3xl font-bold mt-2" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="ovTrades">—</p>
+                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">Executed on-chain</p>
+            </div>
+            <div class="stat-card">
+                <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Total CCT Traded</p>
+                <p class="text-3xl font-bold mt-2" style="color:var(--primary-dim);font-family:'Space Grotesk',sans-serif" id="ovCCT">—</p>
+                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">Carbon Credits</p>
+            </div>
+            <div class="stat-card">
+                <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Total ETH Volume</p>
+                <p class="text-3xl font-bold mt-2" style="color:var(--primary);font-family:'Space Grotesk',sans-serif" id="ovETH">—</p>
+                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">Trading Volume</p>
+            </div>
+            <div class="stat-card">
+                <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--on-surface-variant)">Avg. CCT Price</p>
+                <p class="text-3xl font-bold mt-2" style="color:var(--primary-dim);font-family:'Space Grotesk',sans-serif" id="ovAvgPrice">—</p>
+                <p class="text-xs mt-1" style="color:var(--on-surface-variant)">ETH per CCT</p>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="w-full max-w-5xl mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Price History Chart -->
+            <div class="bg-gray-800 shadow rounded-xl p-6 fade-in">
+                <div class="section-label">Price History</div>
+                <h2 class="text-lg font-semibold" style="font-family:'Space Grotesk',sans-serif">CCT Market Price</h2>
+                <p class="text-xs mt-1 mb-4" style="color:var(--on-surface-variant)">ETH per CCT over time</p>
+                <div class="chart-box">
+                    <canvas id="priceChart" height="150"></canvas>
+                    <p id="priceEmpty" class="text-center text-sm mt-3" style="color:var(--on-surface-variant);display:none">No trade data yet.</p>
+                </div>
+            </div>
+
+            <!-- Volume Chart -->
+            <div class="bg-gray-800 shadow rounded-xl p-6 fade-in">
+                <div class="section-label">Volume</div>
+                <h2 class="text-lg font-semibold" style="font-family:'Space Grotesk',sans-serif">CCT Trade Volume</h2>
+                <p class="text-xs mt-1 mb-4" style="color:var(--on-surface-variant)">Tokens traded per transaction</p>
+                <div class="chart-box">
+                    <canvas id="volumeChart" height="150"></canvas>
+                    <p id="volEmpty" class="text-center text-sm mt-3" style="color:var(--on-surface-variant);display:none">No trade data yet.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="w-full max-w-5xl mt-8 bg-gray-800 shadow rounded-xl p-6 fade-in" style="margin-bottom:40px">
+            <div class="section-label">Leaderboard</div>
+            <h2 class="text-lg font-semibold" style="font-family:'Space Grotesk',sans-serif">🏆 Top Carbon Buyers</h2>
+            <p class="text-xs mt-1" style="color:var(--on-surface-variant)">Ranked by total CCT purchased — the most active offset contributors on the protocol.</p>
+            <div id="leaderboardList" class="mt-6">
+                <div class="leader-row">
+                    <div style="color:var(--on-surface-variant);font-size:0.875rem">Loading leaderboard...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error state -->
+        <div id="errorBanner" class="hidden w-full max-w-5xl mb-6 p-4 rounded-xl text-sm text-center"
+             style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#f87171">
+            ⚠️ Backend unavailable. Start the server on port 5050 to see live data.<br>
+            <span style="font-size:0.75rem;opacity:0.8">Run: <code>node backend/server.js &</code></span>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:5050' : '';
+
+        const CHART_OPTS = {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#bbcac0', font: { family: 'Manrope', size: 12 } } } },
+            scales: {
+                x: { ticks: { color: '#bbcac0', maxTicksLimit: 8 }, grid: { color: 'rgba(60,74,66,0.15)' } },
+                y: { ticks: { color: '#bbcac0' }, grid: { color: 'rgba(60,74,66,0.15)' } }
+            }
+        };
+
+        async function loadAnalytics() {
+            try {
+                // --- Fetch trades ---
+                const res = await fetch(`${API_BASE}/api/trades`);
+                if (!res.ok) throw new Error('Backend unavailable');
+                const trades = await res.json();
+
+                // Overview stats
+                const totalCCT = trades.reduce((s, t) => s + t.amount, 0);
+                const totalETH = trades.reduce((s, t) => s + t.priceEth, 0);
+                const avgPrice = totalCCT > 0 ? totalETH / totalCCT : 0;
+
+                document.getElementById('ovTrades').textContent    = trades.length;
+                document.getElementById('ovCCT').textContent        = totalCCT.toFixed(2);
+                document.getElementById('ovETH').textContent        = totalETH.toFixed(4) + ' ETH';
+                document.getElementById('ovAvgPrice').textContent   = avgPrice.toFixed(6) + ' ETH';
+                document.getElementById('lastUpdated').textContent  = 'Updated: ' + new Date().toLocaleTimeString();
+
+                if (trades.length > 0) {
+                    const sorted = trades.slice().reverse();
+                    const labels = sorted.map((_, i) => `#${i + 1}`);
+
+                    // Price chart
+                    const priceData = sorted.map(t => t.amount > 0 ? parseFloat((t.priceEth / t.amount).toFixed(8)) : 0);
+                    new Chart(document.getElementById('priceChart'), {
+                        type: 'line',
+                        data: { labels, datasets: [{ label: 'ETH/CCT', data: priceData,
+                            borderColor: '#4edea3', backgroundColor: 'rgba(78,222,163,0.08)',
+                            borderWidth: 2, pointBackgroundColor: '#4edea3', pointRadius: 3,
+                            fill: true, tension: 0.35 }] },
+                        options: { ...CHART_OPTS }
+                    });
+
+                    // Volume chart
+                    const volData = sorted.map(t => parseFloat(t.amount.toFixed(2)));
+                    new Chart(document.getElementById('volumeChart'), {
+                        type: 'bar',
+                        data: { labels, datasets: [{ label: 'CCT Traded', data: volData,
+                            backgroundColor: 'rgba(60,221,199,0.35)',
+                            borderColor: '#3cddc7', borderWidth: 1, borderRadius: 4 }] },
+                        options: { ...CHART_OPTS }
+                    });
+                } else {
+                    document.getElementById('priceEmpty').style.display = 'block';
+                    document.getElementById('volEmpty').style.display   = 'block';
+                }
+
+                // --- Fetch leaderboard ---
+                const lbRes = await fetch(`${API_BASE}/api/trades/leaderboard`);
+                const board = await lbRes.json();
+                renderLeaderboard(board);
+
+            } catch (err) {
+                document.getElementById('errorBanner').classList.remove('hidden');
+                document.getElementById('priceEmpty').style.display = 'block';
+                document.getElementById('volEmpty').style.display   = 'block';
+                renderLeaderboard([]);
+            }
+        }
+
+        function renderLeaderboard(board) {
+            const el = document.getElementById('leaderboardList');
+            if (!board || board.length === 0) {
+                el.innerHTML = `<div class="leader-row"><p style="color:var(--on-surface-variant);font-size:0.875rem">No trades recorded yet. Make a purchase on the marketplace to appear here.</p></div>`;
+                return;
+            }
+            const medals = ['🥇', '🥈', '🥉'];
+            const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+            el.innerHTML = board.map((entry, i) => {
+                const addr  = entry._id ? entry._id.slice(0, 6) + '...' + entry._id.slice(-4) : 'Unknown';
+                const color = rankColors[i] || 'var(--primary)';
+                const medal = medals[i] || `#${i + 1}`;
+                return `
+                <div class="leader-row">
+                    <div class="rank-badge" style="background:rgba(78,222,163,0.1);color:${color};font-size:${i < 3 ? '1.1rem' : '0.9rem'}">${medal}</div>
+                    <div style="flex:1;min-width:0">
+                        <a href="https://sepolia.etherscan.io/address/${entry._id}" target="_blank"
+                           style="color:var(--primary);font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:0.9rem;text-decoration:underline">${addr}</a>
+                        <p style="font-size:0.75rem;color:var(--on-surface-variant);margin-top:2px">${entry.tradeCount} trade${entry.tradeCount !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div style="text-align:right">
+                        <p style="font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--on-surface)">${entry.totalCCT.toFixed(2)} <span style="color:var(--primary)">CCT</span></p>
+                        <p style="font-size:0.75rem;color:var(--on-surface-variant)">${entry.totalETH.toFixed(4)} ETH spent</p>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        loadAnalytics();
+    </script>
+</body>
+</html>
